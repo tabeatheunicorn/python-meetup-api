@@ -1,8 +1,12 @@
-from fastapi.responses import HTMLResponse
+
 from typing import List
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
 from .models import Device, MeasurementMeta, MeasurementData
+
 
 app = FastAPI()
 
