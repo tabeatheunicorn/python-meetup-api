@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -8,8 +8,8 @@ class Device(BaseModel):
 
 
 class MeasurementMeta(BaseModel):
-    id: int
-    device_id: int
+    measure_id: str
+    file_size: Optional[float]
 
 class MeasurementData(BaseModel):
     meta: MeasurementMeta
@@ -25,11 +25,10 @@ def get_device_description(device_name: str):
         with open(device_info_file, "r") as file:
             return file.read().strip()
     else:
-        return ""  # Wenn keine Datei gefunden wird, gebe eine leere Beschreibung zurück
-    
+        return ""
 
 
-def get_all_device_from_data_folder():
+def get_all_device_from_data_folder() -> List[Device]:
     subfolders = [subfolder for subfolder in DATA_FOLDER.iterdir() if subfolder.is_dir()]
     devices = [
         Device(
@@ -39,4 +38,43 @@ def get_all_device_from_data_folder():
         for subfolder in subfolders
     ]
     return devices
+
+class NoMeasurementsFoundException(Exception):
+    pass
+
+def get_all_measurements_for_device(device_name) -> List[MeasurementMeta]:
+    measurement_folder: Path = DATA_FOLDER / device_name
+    measurement_files: List[Path] = measurement_folder.glob("*.csv")
+
+    measurements = [
+        MeasurementMeta(
+            measure_id=f"{device_name}-{file.stem}",
+            file_size=file
+        )
+        for file in measurement_files
+    ]
+    if len(measurements) == 0:
+        raise NoMeasurementsFoundException
+    return measurements
+
+
+def get_measurement_data_from_id(measure_id: str):
+    device_name, filename = measure_id.split("-")
+
+    measurement_folder = DATA_FOLDER / device_name
+    measurement_file = measurement_folder / (filename + ".csv")
     
+    if not measurement_file.exists():
+        raise FileNotFoundError
+
+    # Read the content of the file and create a MeasurementData object
+    # Assuming the file contains the data in the same format as before
+    with open(measurement_file, "r") as file:
+        lines = file.readlines()
+        data = [
+            tuple(map(float, line.strip().split(",")))
+            for line in lines[1:]  # Skip the header line
+        ]
+        print(data)
+        measurement_data = MeasurementData(meta=MeasurementMeta(measure_id=measure_id), data=data)
+        return measurement_data
